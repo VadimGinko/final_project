@@ -1,0 +1,134 @@
+import enums.DoorState;
+import lombok.Getter;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
+@Slf4j
+public class Office extends Thread {
+    @Getter
+    private List<Floor> floors = new ArrayList<>();
+    private volatile List<Elevator> elevators = new ArrayList<>();
+    private ArrayDeque<Integer> queue = new ArrayDeque<>();
+
+    public Office(int floorsNumber, int elevatorsNumber) {
+        this.floors = createListOfFloors(floorsNumber);
+        this.elevators = createListOfElevators(elevatorsNumber);
+    }
+
+    @SneakyThrows
+    @Override
+    public void run() {
+        while (true) {
+            int floorsSize = floors.size();
+            Human man1 = Human.ofRandom(floorsSize);
+            int humanRightFloor = man1.getRightFloor();
+            int humanFloor = man1.getFloor();
+            var floor = floors.get(humanFloor - 1);
+            floor.addHuman(man1);
+            if (!floor.isButtonsPressed()) {
+                floor.pressElevatorButton(humanRightFloor);
+                this.queue.add(humanFloor);
+            }
+            log.info(floor.toString());
+            sleep(8000);
+        }
+    }
+
+    @SneakyThrows
+    public void handle2() {
+        for (var elev : elevators) {
+            elev.start();
+        }
+        while (true) {
+            for (var elev : elevators) {
+                if (!elev.isCertainFloorBe() && !queue.isEmpty() && elev.humans.isEmpty() && elev.isFree()) {
+                    log.info("лифт 1 вызван на этаж {}", queue.getFirst());
+                    elev.setCertainFloor(queue.removeFirst());
+                    continue;
+                }
+                if (!elev.getState().toString().equals("TIMED_WAITING") && !elev.isFree()) {
+                    //этаж перед которым мы думаем что делать
+                    var suchFloorNumber = elev.getFloor();
+                    var floor = floors.get(suchFloorNumber - 1);
+                    if (floor.isButtonsPressed()) {
+                        if (elev.isEmpty()) {
+                            if(elev.getDoorState()!= DoorState.OPEN) {
+                                if(elev.getDoorState()!= DoorState.OPENS) {
+                                    elev.setDoorState(DoorState.OPENS);
+                                }
+                                continue;
+                            }
+                            int freeSpaceInElevator = elev.getFreeSpace();
+                            var humans = floor.getHumansInElevator(freeSpaceInElevator);
+                            if (humans != null) {
+                                elev.setHumans(humans);
+                            }
+                            //если ещё есть челы нужно нажать кнопку опять
+                            queue.remove(suchFloorNumber);
+                            floor.unPressButtons();
+                            elev.setDoorState(DoorState.CLOSES);
+                        }else{
+                            if (elev.suchElevatorDirection() == floor.pressedButtonDirection()) {
+                                if(elev.getDoorState()!= DoorState.OPEN) {
+                                    elev.setDoorState(DoorState.OPENS);
+                                    continue;
+                                }
+                                elev.releaseHumansByFloorNumber();
+                                int freeSpaceInElevator = elev.getFreeSpace();
+                                var humans = floor.getHumansInElevator(freeSpaceInElevator);
+                                if (humans != null) {
+                                    elev.setHumans(humans);
+                                }
+                                queue.remove(suchFloorNumber);
+                                floor.unPressButtons();
+                                elev.setDoorState(DoorState.CLOSES);
+                            } else {
+                                if(elev.nextHumanFloor() == suchFloorNumber){
+                                    if(elev.getDoorState()!= DoorState.OPEN) {
+                                        if(elev.getDoorState()!= DoorState.OPENS) {
+                                            elev.setDoorState(DoorState.OPENS);
+                                        }
+                                        continue;
+                                    }
+                                    elev.releaseHumansByFloorNumber();
+                                    elev.setDoorState(DoorState.CLOSES);
+                                }
+                            }
+                        }
+                    }else{
+                        if(elev.nextHumanFloor() == suchFloorNumber){
+                            if(elev.getDoorState()!= DoorState.OPEN) {
+                                if(elev.getDoorState()!= DoorState.OPENS) {
+                                    elev.setDoorState(DoorState.OPENS);
+                                }
+                                continue;
+                            }
+                            elev.releaseHumansByFloorNumber();
+                            elev.setDoorState(DoorState.CLOSES);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private List<Floor> createListOfFloors(int floorsNumber) {
+        return IntStream.range(1, floorsNumber + 1)
+                .mapToObj(Floor::of)
+                .collect(Collectors.toList());
+    }
+
+    private List<Elevator> createListOfElevators(int elevatorsNumber) {
+        List<Elevator> elevators = new ArrayList<>();
+        for (var i = 0; i < elevatorsNumber; i++) {
+            elevators.add(Elevator.of(2000, 500, 500));
+        }
+        return elevators;
+    }
+}
