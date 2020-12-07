@@ -4,7 +4,6 @@ import enums.Direction;
 import lombok.Getter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 import static com.google.common.base.Preconditions.checkArgument;
 
 
@@ -33,14 +32,11 @@ public class Floor {
 
     public List<Human> getHumansInElevator(int freeSpace){
         List<Human> list = new ArrayList<>();
-//        List<Human> list;
-//        list = humans.stream()
-//                       .filter(x -> freeSpace >= x.getWeight() &&
-//                               x.suchHumanDirection() == this.pressedButtonDirection())
-//                      .collect(Collectors.toList());
+        int sum = 0;
         for(var i: humans){
-            if(freeSpace >= i.getWeight() && i.suchHumanDirection() == this.pressedButtonDirection()){
+            if(freeSpace >= sum + i.getWeight() && i.suchHumanDirection() == this.pressedButtonDirection()){
                 list.add(i);
+                sum += i.getWeight();
             }
 
         }
@@ -48,6 +44,14 @@ public class Floor {
         return list;
     }
 
+    public void pressButtonIfPeopleOnFloorNotEmpty(){
+        if (!this.humans.isEmpty()) {
+            if (this.humans.get(0) != null) {
+                int rightFloorNumber = this.humans.get(0).getRightFloor();
+                this.pressElevatorButton(rightFloorNumber);
+            }
+        }
+    }
 
     public void pressElevatorButton(int rightFloorNumber){
         if(rightFloorNumber > floorNumber){

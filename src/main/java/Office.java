@@ -11,14 +11,17 @@ import java.util.stream.Stream;
 
 @Slf4j
 public class Office extends Thread {
-    @Getter
-    private List<Floor> floors = new ArrayList<>();
-    private volatile List<Elevator> elevators = new ArrayList<>();
+    private List<Floor> floors;
+    private volatile List<Elevator> elevators;
     private ArrayDeque<Integer> queue = new ArrayDeque<>();
 
-    public Office(int floorsNumber, int elevatorsNumber) {
+    private Office(int floorsNumber, int elevatorsNumber) {
         this.floors = createListOfFloors(floorsNumber);
         this.elevators = createListOfElevators(elevatorsNumber);
+    }
+
+    public static Office of(int floorsNumber, int elevatorsNumber){
+        return new Office(floorsNumber, elevatorsNumber);
     }
 
     @SneakyThrows
@@ -34,26 +37,30 @@ public class Office extends Thread {
             if (!floor.isButtonsPressed()) {
                 floor.pressElevatorButton(humanRightFloor);
                 this.queue.add(humanFloor);
+                log.info("Человек {} встал в очередь к лифту и нажал кнопку {} очередь этажей на которых запрошен лифт {}", man1, floor, this.queue);
+            }else{
+                log.info("Человек {} встал в очередь к лифту и не нажал кнопку {} очередь этажей на которых запрошен лифт {}", man1, floor, this.queue);
             }
-            log.info(floor.toString());
             sleep(8000);
         }
     }
 
     @SneakyThrows
-    public void handle2() {
+    public void handle() {
+        int number = 1;
         for (var elev : elevators) {
+            elev.setName(String.format("Лифт %s",number));
             elev.start();
+            number += 1;
         }
         while (true) {
             for (var elev : elevators) {
                 if (!elev.isCertainFloorBe() && !queue.isEmpty() && elev.humans.isEmpty() && elev.isFree()) {
-                    log.info("лифт 1 вызван на этаж {}", queue.getFirst());
+                    log.info("лифт {} вызван на этаж {}", elev.getIdElevator(), queue.getFirst());
                     elev.setCertainFloor(queue.removeFirst());
                     continue;
                 }
                 if (!elev.getState().toString().equals("TIMED_WAITING") && !elev.isFree()) {
-                    //этаж перед которым мы думаем что делать
                     var suchFloorNumber = elev.getFloor();
                     var floor = floors.get(suchFloorNumber - 1);
                     if (floor.isButtonsPressed()) {
@@ -64,14 +71,7 @@ public class Office extends Thread {
                                 }
                                 continue;
                             }
-                            int freeSpaceInElevator = elev.getFreeSpace();
-                            var humans = floor.getHumansInElevator(freeSpaceInElevator);
-                            if (humans != null) {
-                                elev.setHumans(humans);
-                            }
-                            //если ещё есть челы нужно нажать кнопку опять
-                            queue.remove(suchFloorNumber);
-                            floor.unPressButtons();
+                            this.pickUpPeopleFromFloor(elev, floor, suchFloorNumber);
                             elev.setDoorState(DoorState.CLOSES);
                         }else{
                             if (elev.suchElevatorDirection() == floor.pressedButtonDirection()) {
@@ -80,13 +80,7 @@ public class Office extends Thread {
                                     continue;
                                 }
                                 elev.releaseHumansByFloorNumber();
-                                int freeSpaceInElevator = elev.getFreeSpace();
-                                var humans = floor.getHumansInElevator(freeSpaceInElevator);
-                                if (humans != null) {
-                                    elev.setHumans(humans);
-                                }
-                                queue.remove(suchFloorNumber);
-                                floor.unPressButtons();
+                                this.pickUpPeopleFromFloor(elev, floor, suchFloorNumber);
                                 elev.setDoorState(DoorState.CLOSES);
                             } else {
                                 if(elev.nextHumanFloor() == suchFloorNumber){
@@ -116,6 +110,25 @@ public class Office extends Thread {
                 }
             }
         }
+    }
+
+    public void pickUpPeopleFromFloor(Elevator elev, Floor floor, int suchFloorNumber){
+        int freeSpaceInElevator = elev.getFreeSpace();
+        var humans = floor.getHumansInElevator(freeSpaceInElevator);
+        if (humans != null) {
+            elev.setHumans(humans);
+        }
+        queue.remove(suchFloorNumber);
+        floor.unPressButtons();
+        floor.pressButtonIfPeopleOnFloorNotEmpty();
+    }
+
+    public List<Floor> getFloors() {
+        return new ArrayList<>(floors);
+    }
+
+    public List<Elevator> getElevators() {
+        return new ArrayList<>(elevators);
     }
 
     private List<Floor> createListOfFloors(int floorsNumber) {
