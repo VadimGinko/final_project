@@ -37,9 +37,9 @@ public class Office extends Thread {
             if (!floor.isButtonsPressed()) {
                 floor.pressElevatorButton(humanRightFloor);
                 this.queue.add(humanFloor);
-                log.info("Человек {} встал в очередь к лифту и нажал кнопку {} очередь этажей на которых запрошен лифт {}", man1, floor, this.queue);
+                log.info("Человек {} встал в очередь к лифту и нажал кнопку {} очередь этажей на которых запрошен лифт {}", man1, floor, this.queue.toString());
             }else{
-                log.info("Человек {} встал в очередь к лифту и не нажал кнопку {} очередь этажей на которых запрошен лифт {}", man1, floor, this.queue);
+                log.info("Человек {} встал в очередь к лифту и не нажал кнопку {} очередь этажей на которых запрошен лифт {}", man1, floor, this.queue.toString());
             }
             sleep(8000);
         }
@@ -96,6 +96,7 @@ public class Office extends Thread {
                             }
                         }
                     }else{
+                        suchFloorNumber = elev.getFloor();
                         if(elev.nextHumanFloor() == suchFloorNumber){
                             if(elev.getDoorState()!= DoorState.OPEN) {
                                 if(elev.getDoorState()!= DoorState.OPENS) {
@@ -105,6 +106,12 @@ public class Office extends Thread {
                             }
                             elev.releaseHumansByFloorNumber();
                             elev.setDoorState(DoorState.CLOSES);
+                        }else {
+                            floor = floors.get(suchFloorNumber - 1);
+                            if (elev.isEmpty() && elev.nextHumanFloor() == -1
+                                    && elev.getDoorState() == DoorState.CLOSED && floor.isEmpty()) {
+                                elev.doElevFree();
+                            }
                         }
                     }
                 }

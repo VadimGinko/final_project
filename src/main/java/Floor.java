@@ -13,7 +13,7 @@ public class Floor {
     private ButtonState buttonUp;
     private ButtonState buttonDown;
 
-    List<Human> humans = new ArrayList<>();
+    private List<Human> humans = new ArrayList<>();
 
     private Floor(int floorNumber) {
         checkArgument(floorNumber >= 1, "floor cannot be less than one");
@@ -66,6 +66,10 @@ public class Floor {
             return Direction.Up;
         else
             return Direction.Down;
+    }
+
+    public boolean isEmpty(){
+        return this.humans.isEmpty();
     }
 
     public boolean isButtonsPressed(){

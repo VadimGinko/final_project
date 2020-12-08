@@ -67,21 +67,25 @@ public class Elevator extends Thread {
                 sleep(timeLift * (Math.abs(this.certainFloor - this.floor)));
                 this.isFree = false;
                 goToCertainFloor = false;
-                log.info("Лифт {} прибыл на {}", this.getIdElevator(), this.certainFloor);
                 floor = certainFloor;
                 certainFloor = -1;
+                log.info("Лифт {} прибыл на {}", this.getIdElevator(), this.floor);
             }
             if (doorState == DoorState.CLOSED && !humans.isEmpty()) {
-                if (floor != nextHumanFloor())
-                    log.info("next floor {}", nextHumanFloor());
                 if (floor > nextHumanFloor()) {
                     floor--;
-                    log.info("Лифт едет " + floor);
+                    if (floor != nextHumanFloor())
+                        log.info("следующий этаж {} -- лифт едет на этаже {}", nextHumanFloor(), floor);
+                    else
+                        log.info(" -- лифт едет на этаже " + floor);
                     sleep(timeLift);
                 }
                 if (floor < nextHumanFloor()) {
                     floor++;
-                    log.info("Лифт едет " + floor);
+                    if (floor != nextHumanFloor())
+                        log.info("следующий этаж {} -- лифт едет на этаже {}", nextHumanFloor(), floor);
+                    else
+                        log.info(" -- лифт едет на этаже " + floor);
                     sleep(timeLift);
                 }
             }
@@ -134,6 +138,10 @@ public class Elevator extends Thread {
             return -1; //return 1
         else
             return humans.get(0).getRightFloor();
+    }
+
+    public void doElevFree(){
+        this.isFree = true;
     }
 
     public int getFreeSpace() {
